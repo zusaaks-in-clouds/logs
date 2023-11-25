@@ -23,6 +23,7 @@ module "k8s_cluster" {
   gke_cluster_location = var.gke_cluster_location
   gke_cluster_name     = var.gke_cluster_name
   gke_node_pool        = var.gke_node_pool
+  sandbox_version      = var.sandbox_version
 }
 
 # ------------------------------------------
@@ -31,19 +32,26 @@ module "online_boutique" {
   source            = "./microservice_demo"
   depends_on        = [module.k8s_cluster]
   enable_asm        = var.enable_asm
-  filepath_manifest = var.filepath_manifest
+  manifest_filepath = var.manifest_filepath
   gcp_project_id    = module.enable_google_apis.project_id
 }
 
-# ------------------------------------------
-# Cloud Ops configuration
+# # ------------------------------------------
+# # Cloud Ops configuration
 module "cloud_ops" {
-  source               = "./cloud-ops"
-  depends_on           = [module.online_boutique]
-  enable_asm           = var.enable_asm
-  frontend_external_ip = module.online_boutique.frontend_ip_address
-  gcp_project_id       = var.gcp_project_id
-  gke_cluster_name     = var.gke_cluster_name
+  source     = "./cloud-ops"
+  depends_on = [module.online_boutique]
+  # hardcoded additional variables for configurations
+  # TODO: change to more dynamic solution to support multiple demo apps
+  additional_configuration_vars = {
+    public_hostname            = module.online_boutique.frontend_ip_address
+    notification_channel_email = "admin@company.com"
+  }
+
+  configuration_filepath = var.configuration_filepath
+  enable_asm             = var.enable_asm
+  gcp_project_id         = module.enable_google_apis.project_id
+  gke_cluster_name       = var.gke_cluster_name
   # re-use prefix to customize resources within the same project
-  name_suffix = length(var.state_prefix) > 0 ? "-${var.state_prefix}" : ""
+  name_suffix = length(var.state_prefix) > 0 ? var.state_prefix : ""
 }
